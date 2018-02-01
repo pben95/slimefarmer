@@ -24,7 +24,7 @@ class Player:  #player class, holds some info and whatever
         self.itemSelected = None
         self.slimeSelected = None
         self.slimes = [Slime("Slime", game.randomGene(3)), Slime("Slime", game.randomGene(3))]
-        self.alert = None
+        self.battle = False
         self.map = "Island"
         self.diff = 1
 
@@ -97,8 +97,10 @@ class Slime:  #slime class, very useful :)
             self.health = self.lvl * int(self.gene[5])
     def mate(self, geneM, geneF):  #slime mating. even indexes of gene determine dominance or ressiveness
         if player.money >= 100 and geneM.lvl > 0 and geneF.lvl > 0:
-            geneM.lvl -= 1
-            geneF.lvl -= 1
+            if random.randint(0,1) == 0:
+                geneM.lvl -= 1
+            else:
+                geneF.lvl -= 1
             player.money -= 100
             geneC = ""
             for i in range(0, 10, 2):
@@ -144,7 +146,7 @@ class Slime:  #slime class, very useful :)
                         num = game.nta(num)
                     elif i > 0:
                         if random.randint(0, 50) == 0:   #mutation!
-                            num = random.randint(1, 9)
+                            num = random.randint(2, 6)
                     geneC += str(num)
             print(geneC)
             if len(player.slimes) < 9:  #adds child to farm if less than 9 slimes
@@ -175,7 +177,7 @@ class Scene:  #handling different scenes (farm, inv, market, battle). want to re
         self.num = num  #scene number for render function, i'm bad at this kinda thing
         self.input = input  #input for render function, still bad at this kinda thing
     def gui(self):  #render's GUI firstly and separetely from everything else
-        screen.fill((90, 200, 244))
+        screen.fill((24, 76, 48))
         global buttons, labels, lines
         if renderScene.num == 0 or renderScene.num == 3:  #renders background at farm and battle
             screen.blit(farmbg, (0, 39))
@@ -190,7 +192,7 @@ class Scene:  #handling different scenes (farm, inv, market, battle). want to re
         labels = [  #labels for buttons
             screen.blit(pygame.font.Font(None, 36).render("Farm", False, (255, 255, 255)),  #farm scene label
                         (buttons[0].x + 67, buttons[0].y + 30)),
-            screen.blit(pygame.font.Font(None, 36).render("Battle", False, (255, 255, 255)),  #battle scene label
+            screen.blit(pygame.font.Font(None, 36).render("Inventory", False, (255, 255, 255)),  #battle scene label
                         (buttons[1].x + 45, buttons[1].y + 30)),
             screen.blit(pygame.font.Font(None, 36).render("Map", False, (255, 255, 255)),  #market scene label
                         (buttons[2].x + 61, buttons[2].y + 30))
@@ -283,16 +285,14 @@ while not done:
             done = True
         #pygame.time.set_timer(pygame.MOUSEBUTTONDOWN,500)
         elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:  #left mouse button down
-            if buttons[0].collidepoint(pygame.mouse.get_pos()):  #click left button, go to farm
+            if buttons[0].collidepoint(pygame.mouse.get_pos()) and not player.battle:  #click left button, go to farm
                 renderScene = sceneList[0]
-            elif buttons[1].collidepoint(pygame.mouse.get_pos()):  #click middle button, go to battle
-                if player.slimeSelected != None:
-                    enemySlime = Slime("Enemy", game.randomGene(player.diff))
-                    renderScene = Scene(3, player.slimeSelected)
-            elif buttons[2].collidepoint(pygame.mouse.get_pos()):  #click right button, go to market
-                renderScene = Scene(4, None)
-            elif buttons[3].collidepoint(pygame.mouse.get_pos()):
+            elif buttons[1].collidepoint(pygame.mouse.get_pos()) and not player.battle:  #click middle button, go to battle
                 renderScene = sceneList[1]
+            elif buttons[2].collidepoint(pygame.mouse.get_pos()) and not player.battle:  #click right button, go to market
+                renderScene = Scene(4, None)
+            elif buttons[3].collidepoint(pygame.mouse.get_pos()) and not player.battle:
+                pass
             else:
                 if renderScene.num == 0:  #if farm
                     for i in player.slimes:  #check if click slime
@@ -307,6 +307,10 @@ while not done:
                                 player.slimeSelected = None
                             elif player.slimeSelected == None:  #selects slime if none selected
                                 player.slimeSelected = i
+                            elif i == player.slimeSelected:
+                                enemySlime = Slime("Enemy", game.randomGene(player.diff))
+                                player.battle = True
+                                renderScene = Scene(3, player.slimeSelected)
                 elif renderScene.num == 1:  #if inventory
                     for i in player.inv:  #selects item, brings to farm scene
                         if i.rect.collidepoint(pygame.mouse.get_pos()):
@@ -323,6 +327,7 @@ while not done:
                         if player.slimeSelected.hp <= 0:  #if player slime loses all HP, permadeath!
                             player.slimes.remove(player.slimeSelected)
                             player.slimeSelected = None
+                            player.battle = False
                             renderScene = sceneList[0]  #back to farm scene
                         else:
                             if enemySlime.hp <= 0:  #if enemy slime 0 hp, get money and xp
@@ -330,9 +335,10 @@ while not done:
                                 player.slimeSelected.hp = player.slimeSelected.health  #heals your slime for now
                                 player.money += 50
                                 player.slimeSelected.XP(int(math.ceil((enemySlime.attack+enemySlime.speed+(enemySlime.health/10))/3))*5)
-                                if random.randint(0,25) == 0:
+                                if random.randint(0,20) == 0:
                                     player.inv.append(Item("Steak", 10))
                                 player.slimeSelected = None
+                                player.battle = False
                                 renderScene = sceneList[0]  #back to farm
                 elif renderScene.num == 4:  #if map
                     for i in range(len(mapPoints)):
