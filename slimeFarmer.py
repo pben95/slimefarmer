@@ -6,8 +6,8 @@ farmbg = pygame.image.load("assets/farmbg.png")
 worldmap = pygame.image.load("assets/worldmap.png")
 natureBattle = [[1, 2, 3, 4], [5, 6, 7, 8], [9, 10, 11, 12], [13, 14, 15, 16], [17, 18, 19, 20], [21, 22, 23, 24],  #rock paper scissors for slime nature damage
                     [2, 4, 5, 7], [3, 4, 9, 10], [7, 8, 13, 14], [11, 12, 17, 18], [15, 16, 21, 22], [18, 20, 21, 23]]
-natures = ["Cool", "Hardy", "Lonely", "Brave", "Adamant", "Careful", "Bold", "Docile", "Impish", "Lazy", "Timid",  #slime nature names, from pokemon :)
-           "Hasty", "Serious", "Jolly", "Naive", "Modest", "Mild", "Quiet", "Quirky", "Rash", "Calm", "Gentle", "Sassy", "Naughty", "Bashful"]  #24
+natures = ["Cool", "Hardy", "Lonely", "Brave", "Adamant", "Careful", "Bold", "Docile", "Impish", "Lazy", "Timid", "Hasty",   #slime nature names, from pokemon :)
+           "Serious", "Jolly", "Naive", "Modest", "Mild", "Quiet", "Quirky", "Rash", "Calm", "Gentle", "Sassy", "Naughty", "Bashful"]  #24
 mapPoints = [ pygame.Rect(10,350,150,150),"Island",
               pygame.Rect(350,350,170,150),"Desert",
               pygame.Rect(200,250,150,150),"Plain",
@@ -15,12 +15,11 @@ mapPoints = [ pygame.Rect(10,350,150,150),"Island",
               pygame.Rect(80,50,200,200),"Mountain"]
 class Player:  #player class, holds some info and whatever
     def __init__(self):
-        #self.name = name
-        self.level = 0
-        self.exp = 0
-        self.money = 100
-        self.inv = []  #max 220
-        self.jelly = [0, 0, 0] #  Red, Blue, Yellow
+        #self.name = name  #is a name really necessary
+        self.level = 0  #player's level, not implemented
+        self.exp = 0  #player's exp, not implemented
+        self.money = 100  #money, used for breeding slimes mostly
+        self.inv = [Item("Steak",10)]  #max 220 because of the inventory screen layout, and also there's no items really
         self.itemSelected = None
         self.slimeSelected = None
         self.slimes = [Slime("Slime", game.randomGene(3)), Slime("Slime", game.randomGene(3))]
@@ -66,7 +65,6 @@ class Slime:  #slime class, very useful :)
         self.name = name
         self.gene = gene  #currently 10 char long, 5 values, nature color health attack speed. see randomGene()
         self.food = "Steak"  #favorite food. probably gonna scrap
-        self.outputAmt = 1  #jelly output amount. maybe scrap? game went different route
         self.lvl = 1
         self.exp = 0
         self.natureNum = game.nta(self.gene[1])  #1-25, place in natures list
@@ -90,7 +88,6 @@ class Slime:  #slime class, very useful :)
         if self.exp >= 100:
             self.exp -= 100
             self.lvl += 1
-            self.outputAmt += 1
             self.attack = self.lvl * int(self.gene[7])
             self.speed = self.lvl * int(self.gene[9])
             self.hp = self.lvl * int(self.gene[5])
@@ -151,10 +148,6 @@ class Slime:  #slime class, very useful :)
             print(geneC)
             if len(player.slimes) < 9:  #adds child to farm if less than 9 slimes
                 player.slimes.append(Slime("Slime", geneC))
-    def buy(self):  #buys slime, going to get rid of this probably and make breed only
-        if player.money >= 100 and len(player.slimes) < 9:
-            player.money -= 100
-            player.slimes.append(Slime("Slime", game.randomGene(3)))
 
 class Item:  #item's pretty much only food right now
     def __init__(self, name, price):
@@ -169,8 +162,12 @@ class Item:  #item's pretty much only food right now
     def sell(self):  #sells item, gives back 3/4 of value
         player.money += int(self.price * 0.75)
         player.inv.remove(self)
-    def use(self):  #uses item, probably not going to implement
-        pass
+    def use(self, slime):  #uses item, probably not going to implement
+        if self.name == "Steak":
+            if self.name == slime.food:  # check's if favorite food, gives more exp
+                slime.XP(25)
+            else:
+                slime.XP(10)
 
 class Scene:  #handling different scenes (farm, inv, market, battle). want to rework to be less shitty
     def __init__(self, num, input):
@@ -203,9 +200,14 @@ class Scene:  #handling different scenes (farm, inv, market, battle). want to re
             pygame.draw.line(screen, (0, 0, 0), (0, 525), (600, 525), 5),  #bottom horizontal line
             pygame.draw.line(screen, (0, 0, 0), (0, 40), (600, 40), 5)  #top horizontal line
         ]
-        screen.blit(pygame.font.Font(None, 24).render(  #renders player info
+        if player.itemSelected == None:
+            screen.blit(pygame.font.Font(None, 24).render(  #renders player info
             "Level: " + str(player.level) + " [" + str(player.exp) + "/100], Money: " + str(player.money) + ", " + player.map, False,
             (0, 0, 0), (255, 255, 255)), (0, 0))
+        elif player.itemSelected != None:
+            screen.blit(pygame.font.Font(None, 24).render(  # renders player info
+            "Level: " + str(player.level) + " [" + str(player.exp) + "/100], Money: " + str(player.money) + ", " + player.map + ", " + player.itemSelected.name,
+                False,(0, 0, 0), (255, 255, 255)), (0, 0))
         if player.slimeSelected != None:  #if slime selected, renders it's info
             screen.blit(pygame.font.Font(None, 24).render(player.slimeSelected.gene, False,(0, 0, 0), (255, 255, 255)), (300,0))
     def render(self):  #render's the GUI then the scene
@@ -298,7 +300,8 @@ while not done:
                     for i in player.slimes:  #check if click slime
                         if i.rect.collidepoint(pygame.mouse.get_pos()):
                             if player.itemSelected != None:  #check if item selected, feed to slime
-                                i.feed(player.itemSelected)
+                                player.itemSelected.use(i)
+                                player.inv.remove(player.itemSelected)
                                 player.itemSelected = None
                                 if len(player.inv) > 0:  #go back to inv if not empty
                                     renderScene = sceneList[1]
@@ -307,7 +310,7 @@ while not done:
                                 player.slimeSelected = None
                             elif player.slimeSelected == None:  #selects slime if none selected
                                 player.slimeSelected = i
-                            elif i == player.slimeSelected:
+                            elif i == player.slimeSelected and player.itemSelected == None:
                                 enemySlime = Slime("Enemy", game.randomGene(player.diff))
                                 player.battle = True
                                 renderScene = Scene(3, player.slimeSelected)
@@ -348,11 +351,12 @@ while not done:
         elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 3:  #if right mouse button down
             if renderScene.num == 0:  #if farm
                 for i in player.slimes:  #removes slime if right clicked
-                    if i.rect.collidepoint(pygame.mouse.get_pos()) and len(player.slimes) > 1:
+                    if i.rect.collidepoint(pygame.mouse.get_pos()) and len(player.slimes) > 2:  #need 2 slimes
                         #player.money += 100 + i.exp + (100 * i.lvl) #gives player money based on slime's level/exp
                         player.slimes.remove(i)
                         break
                 player.slimeSelected = None  #deselects slime if right click
+                player.itemSelected = None  #deselects item if right click
             elif renderScene.num == 1:  #if inventory
                 for i in player.inv:
                     if i.rect.collidepoint(pygame.mouse.get_pos()):  #sells item in inventory if right clicked
